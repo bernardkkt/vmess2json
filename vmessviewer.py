@@ -110,15 +110,7 @@ if __name__ == "__main__":
     indata = option.subs.read().strip()
 
     try:
-        if indata.find("vmess") < 0:
-            b64dec = indata[:]
-            blen = len(b64dec)
-            if blen % 4 > 0:
-                b64dec += "=" * (4 - blen % 4)
-
-            lines = base64.b64decode(b64dec).decode().splitlines()
-        else:
-            raise binascii.Error
+        lines = base64.b64decode(indata).decode().splitlines()
     except (binascii.Error, UnicodeDecodeError):
         lines = indata.splitlines()
     finally:
