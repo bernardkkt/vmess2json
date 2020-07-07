@@ -366,7 +366,6 @@ def parseSs(sslink):
         RETOBJ["id"] = password
         return RETOBJ
 
-
 def parseVmess(vmesslink):
     """
     return:
@@ -415,8 +414,10 @@ def fill_basic(_c, _v):
         _outbound["streamSettings"]["security"] = "tls"
         _outbound["streamSettings"]["tlsSettings"] = {"allowInsecure": True}
         if _v["host"] != "":
-            _outbound["streamSettings"]["tlsSettings"]["serverName"] = _v["host"] 
+            _outbound["streamSettings"]["tlsSettings"]["serverName"] = _v["host"]
 
+    if _v["ps"] != "direct":
+    	_outbound["tag"] = _v["ps"]
 
     return _c
 
@@ -503,7 +504,6 @@ def vmess2client(_t, _v):
     else:
         pprint.pprint(_v)
         raise Exception("this link seem invalid to the script, please report to dev.")
-
 
 def parse_multiple(lines):
     def genPath(ps, rand=False):
@@ -626,6 +626,38 @@ def fill_dns(_c):
     
     return _c
 
+def fill_balancer(_c):
+    # Read outbound length
+    outbound_size = len(_c["outbounds"])
+
+    # Extract all tags
+    tags = []
+    for i in range(outbound_size):
+    	tags.append(_c["outbounds"][i]["tag"])
+
+    # Remove "direct"
+    tags.remove("direct")
+
+    # Add balancer template
+    balancer_routing = {
+    	"balancers": [{
+    		"tag": "b1",
+    		"selector": []
+    	}]
+    }
+    balancer_rules = {
+    	"type": "field",
+    	"network": "tcp,udp",
+    	"balancerTag": "b1"
+    }
+    _c["routing"].update(balancer_routing)
+    _c["routing"]["rules"].append(balancer_rules)
+
+    # Insert tags
+    _c["routing"]["balancers"][0]["selector"] = tags
+
+    return _c
+
 def read_subscribe(sub_url):
     print("Reading from subscribe ...")
 
@@ -664,6 +696,8 @@ def select_multiple(lines):
 
     if len(vmesses) == 1:
         idx = 0
+    elif len(vmesses) > 1 and str(option.select) == "all":
+    	idx = list(range(len(vmesses)))
     elif len(vmesses) > 1 and int(option.select) > 0:
         idx = int(option.select) - 1
     elif len(vmesses) > 1 and sys.stdin.isatty():
@@ -672,12 +706,30 @@ def select_multiple(lines):
     else:
         raise Exception("Current session can't open a tty to select. Specify the index to --select argument.")
 
-    item = vmesses[idx]["vm"]
-    
-    ln = parseLink(item)
-    if ln is None:
-        return
-    cc = fill_inbounds(fill_dns(vmess2client(load_TPL("CLIENT"), ln)))
+    cc = None
+    while True:
+    	if isinstance(idx, list):
+    		idxx = idx.pop()
+    	else:
+    		idxx = idx
+
+    	item = vmesses[idxx]["vm"]
+
+    	ln = parseLink(item)
+    	if ln is None:
+    	    return
+
+    	if cc is None:
+    		cc = fill_inbounds(fill_dns(vmess2client(load_TPL("CLIENT"), ln)))
+    	else:
+    		cc["outbounds"].append(vmess2client(load_TPL("CLIENT"), ln)["outbounds"][0])
+
+    	if isinstance(idx, int) or idxx == 0:
+    		break
+
+    if str(option.select) == "all":
+    	cc = fill_balancer(cc)
+
     jsonDump(cc, option.output)
 
 def detect_stdin():
