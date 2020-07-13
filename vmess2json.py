@@ -349,6 +349,11 @@ def parseSs(sslink):
             method, password = info[:atidx].split(":", 2)
             addr, port = info[atidx+1:].split(":", 2)
         else:
+            if info.count('/?'):
+                # additional parameters found
+                info, _temp = info.split("/?", 2)
+                if _temp.count("plugin="):
+                    raise Exception("Unsupported link: ss://{}/?{}".format(info, _temp))
             atidx = info.rfind("@")
             addr, port = info[atidx+1:].split(":", 2)
 
