@@ -271,6 +271,11 @@ function parseSs(link) {
     retobj.ps = items.join('#')
   }
   if (info.includes('@')) {
+    if (info.includes('plugin=')) {
+      // plugin not supported
+      document.getElementById('stdout').innerHTML = 'Unsupported SS plugin'
+      return
+    }
     var addrport = info.substring(info.indexOf('@') + 1).split(':')
     retobj.add = addrport[0]
     retobj.port = addrport[1]
@@ -280,7 +285,12 @@ function parseSs(link) {
     if (blen % 4 > 0) {
       info += '=' * (4 - blen % 4)
     }
-    info = window.atob(info)
+    try {
+      info = window.atob(info)
+    } catch(err) {
+      document.getElementById('stdout').innerHTML = 'Conversion error'
+      throw err
+    }
 
     var metpass = info.split(':')
     retobj.aid = metpass[0]
@@ -291,7 +301,12 @@ function parseSs(link) {
     if (blen % 4 > 0) {
       info += '=' * (4 - blen % 4)
     }
-    info = window.atob(info)
+    try {
+      info = window.atob(info)
+    } catch(err) {
+      document.getElementById('stdout').innerHTML = 'Conversion error'
+      throw err
+    }
     var items = info.split('@')
     var metpass = items[0].split(':')
     retobj.aid = metpass[0]
@@ -454,14 +469,19 @@ function fillInbounds(_c) {
 }
 
 function parseVmess(link) {
-  var info = link.substring(8); // remove vmess:// profix
-  var blen = info.length;
+  var info = link.substring(8) // remove vmess:// profix
+  var blen = info.length
   if (blen % 4 > 0) {
-    info += "=" * (4 - blen % 4);
+    info += "=" * (4 - blen % 4)
   }
-  info = window.atob(info)
-  var jsonmap = JSON.parse(info);
-  return jsonmap;
+  try {
+    info = window.atob(info)
+  } catch(err) {
+    document.getElementById('stdout').innerHTML = 'Conversion error'
+    throw err
+  }
+  var jsonmap = JSON.parse(info)
+  return jsonmap
 }
 
 function showOutput(itemObj) {
@@ -492,4 +512,3 @@ function main() {
   showOutput(item)
   return
 }
-
